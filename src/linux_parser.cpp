@@ -1,13 +1,22 @@
-#include <dirent.h>
-#include <unistd.h>
-#include <string>
-#include <vector>
-
 #include "linux_parser.h"
 
+#include <dirent.h>
+#include <unistd.h>
+
+#include <cmath>
+#include <iostream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+using std::getline;
+using std::ifstream;
+using std::istringstream;
+using std::replace;
 using std::stof;
 using std::string;
 using std::to_string;
+using std::unordered_map;
 using std::vector;
 
 // DONE: An example of how to read data from the filesystem
@@ -15,16 +24,16 @@ string LinuxParser::OperatingSystem() {
   string line;
   string key;
   string value;
-  std::ifstream filestream(kOSPath);
+  ifstream filestream(kOSPath);
   if (filestream.is_open()) {
-    while (std::getline(filestream, line)) {
-      std::replace(line.begin(), line.end(), ' ', '_');
-      std::replace(line.begin(), line.end(), '=', ' ');
-      std::replace(line.begin(), line.end(), '"', ' ');
-      std::istringstream linestream(line);
+    while (getline(filestream, line)) {
+      replace(line.begin(), line.end(), ' ', '_');
+      replace(line.begin(), line.end(), '=', ' ');
+      replace(line.begin(), line.end(), '"', ' ');
+      istringstream linestream(line);
       while (linestream >> key >> value) {
         if (key == "PRETTY_NAME") {
-          std::replace(value.begin(), value.end(), '_', ' ');
+          replace(value.begin(), value.end(), '_', ' ');
           return value;
         }
       }
@@ -37,10 +46,10 @@ string LinuxParser::OperatingSystem() {
 string LinuxParser::Kernel() {
   string os, version, kernel;
   string line;
-  std::ifstream stream(kProcDirectory + kVersionFilename);
+  ifstream stream(kProcDirectory + kVersionFilename);
   if (stream.is_open()) {
-    std::getline(stream, line);
-    std::istringstream linestream(line);
+    getline(stream, line);
+    istringstream linestream(line);
     linestream >> os >> version >> kernel;
   }
   return kernel;
@@ -66,18 +75,45 @@ vector<int> LinuxParser::Pids() {
   return pids;
 }
 
-// TODO: Read and return the system memory utilization
-float LinuxParser::MemoryUtilization() { return 0.0; }
+// DONE: Read and return the system memory utilization
+// source:
+// https://stackoverflow.com/questions/41224738/how-to-calculate-system-memory-usage-from-proc_dict-meminfo-like-htop/41251290#41251290
+float LinuxParser::MemoryUtilization() {
+  LoadProc();
 
-// TODO: Read and return the system uptime
-long LinuxParser::UpTime() { return 0; }
+  uint64_t memTotal{proc["meminfo"]["MemTotal"]},
+      memFree{proc["meminfo"]["MemFree"]};
+
+  // usedTotal = memTotal - memFree;
+  return (memTotal - memFree + 0.) / memTotal;
+}
+
+// DONE: Read and return the system uptime
+long LinuxParser::UpTime() {
+  long upTime{0};
+
+  ifstream filestream(kProcDirectory + kUptimeFilename);
+  if (filestream.is_open()) {
+    double seconds;
+
+    // get uptime in seconds from file (first value)
+    string line;
+    getline(filestream, line);
+    istringstream linestream(line);
+    linestream >> seconds;
+
+    upTime = round(seconds);
+  }
+
+  return upTime;
+}
 
 // TODO: Read and return the number of jiffies for the system
 long LinuxParser::Jiffies() { return 0; }
 
 // TODO: Read and return the number of active jiffies for a PID
 // REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::ActiveJiffies(int pid[[maybe_unused]]) { return 0; }
+long LinuxParser::ActiveJiffies(int pid [[maybe_unused]]) { return 0; }
 
 // TODO: Read and return the number of active jiffies for the system
 long LinuxParser::ActiveJiffies() { return 0; }
@@ -88,28 +124,80 @@ long LinuxParser::IdleJiffies() { return 0; }
 // TODO: Read and return CPU utilization
 vector<string> LinuxParser::CpuUtilization() { return {}; }
 
-// TODO: Read and return the total number of processes
-int LinuxParser::TotalProcesses() { return 0; }
+// DONE: Read and return the total number of processes
+int LinuxParser::TotalProcesses() {
+  LoadProc();
+  return proc["stat"]["processes"];
+}
 
-// TODO: Read and return the number of running processes
-int LinuxParser::RunningProcesses() { return 0; }
+// DONE: Read and return the number of running processes
+int LinuxParser::RunningProcesses() {
+  LoadProc();
+  return proc["stat"]["procs_running"];
+}
 
 // TODO: Read and return the command associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Command(int pid[[maybe_unused]]) { return string(); }
+string LinuxParser::Command(int pid [[maybe_unused]]) { return string(); }
 
 // TODO: Read and return the memory used by a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Ram(int pid[[maybe_unused]]) { return string(); }
+string LinuxParser::Ram(int pid [[maybe_unused]]) { return string(); }
 
 // TODO: Read and return the user ID associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Uid(int pid[[maybe_unused]]) { return string(); }
+string LinuxParser::Uid(int pid [[maybe_unused]]) { return string(); }
 
 // TODO: Read and return the user associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::User(int pid[[maybe_unused]]) { return string(); }
+string LinuxParser::User(int pid [[maybe_unused]]) { return string(); }
 
 // TODO: Read and return the uptime of a process
 // REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::UpTime(int pid[[maybe_unused]]) { return 0; }
+long LinuxParser::UpTime(int pid [[maybe_unused]]) { return 0; }
+
+// helper functions
+
+// TODO: load meminfo into our map if not already loaded
+void LinuxParser::LoadProc() {
+  if (proc.empty()) {
+    string line, key, unit;
+    uint64_t value;
+
+    // handles meminfo
+    ifstream filestream(kProcDirectory + kMeminfoFilename);
+    if (filestream.is_open()) {
+      unordered_map<string, uint64_t> meminfo;
+
+      // read key value pairs into dict
+      while (getline(filestream, line)) {
+        istringstream linestream(line);
+        while (linestream >> key >> value >> unit) {
+          // remove :
+          key.pop_back();
+          meminfo[key] = value;
+        }
+      }
+
+      proc["meminfo"] = meminfo;
+    }
+    filestream.close();
+
+    // FIXME: not stat loading correctly
+    // handles stat
+    filestream.open(kProcDirectory + kStatFilename);
+    if (filestream.is_open()) {
+      unordered_map<string, uint64_t> stat;
+      // read key value pairs into dict
+      while (getline(filestream, line)) {
+        istringstream linestream(line);
+        linestream >> key;
+        if (key.rfind("proc", 0) == 0) {
+          linestream >> value;
+          stat[key] = value;
+        }
+      }
+      proc["stat"] = stat;
+    }
+  }
+};
