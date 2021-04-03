@@ -1,7 +1,7 @@
 #include "format.h"
 
+#include <iostream>
 #include <string>
-
 using std::string;
 
 // TODO: Complete this helper function

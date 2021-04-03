@@ -10,11 +10,6 @@ using std::string;
 using std::unordered_map;
 
 namespace LinuxParser {
-
-// helper functions
-static unordered_map<string, unordered_map<string, uint64_t>> proc;
-void LoadProc();
-
 // Paths
 const string kProcDirectory{"/proc/"};
 const string kCmdlineFilename{"/cmdline"};
@@ -61,6 +56,13 @@ string Ram(int pid);
 string Uid(int pid);
 string User(int pid);
 long int UpTime(int pid);
+
+// helper functions
+static unordered_map<string, unordered_map<string, uint64_t>> proc;
+void InitProc();
+void UpdateMeminfo();
+void UpdateStat();
+void UpdateUptime();
 };  // namespace LinuxParser
 
 #endif
