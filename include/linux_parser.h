@@ -1,13 +1,11 @@
 #ifndef SYSTEM_PARSER_H
 #define SYSTEM_PARSER_H
 
-#include <any>
 #include <fstream>
 #include <regex>
 #include <string>
 #include <unordered_map>
 
-using std::any;
 using std::string;
 using std::unordered_map;
 
@@ -64,7 +62,6 @@ string User(int pid);
 long int UpTime(int pid);
 
 // helper functions
-static unordered_map<string, unordered_map<string, any>> proc;
 void InitProc();
 void UpdateMeminfo();
 void UpdateStat();
