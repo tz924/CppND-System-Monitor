@@ -4,16 +4,22 @@
 #include <unistd.h>
 
 #include <cmath>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 using std::any_cast;
+using std::fixed;
 using std::getline;
 using std::ifstream;
 using std::istringstream;
+using std::ostringstream;
 using std::replace;
+using std::setprecision;
+using std::setw;
 using std::stof;
 using std::string;
 using std::to_string;
@@ -104,7 +110,7 @@ long LinuxParser::UpTime() {
 // DONE: Read and return the number of jiffies for the system
 long LinuxParser::Jiffies() { return ActiveJiffies() + IdleJiffies(); }
 
-// TODO: Read and return the number of active jiffies for a PID
+// DONE: Read and return the number of active jiffies for a PID
 long LinuxParser::ActiveJiffies(int pid) {
   string line, temp;
   u64 utime, stime, cutime, cstime;
@@ -113,7 +119,7 @@ long LinuxParser::ActiveJiffies(int pid) {
   if (filestream.is_open()) {
     while (getline(filestream, line)) {
       istringstream linestream(line);
-      for (int i = 0; i < 22; i++) {
+      for (int i = 0; i < 17; i++) {
         switch (i) {
           case 13:
             linestream >> utime;
@@ -189,7 +195,7 @@ int LinuxParser::RunningProcesses() {
   return any_cast<int>(proc["stat"]["procs_running"]);
 }
 
-// TODO: Read and return the command associated with a process
+// DONE: Read and return the command associated with a process
 string LinuxParser::Command(int pid) {
   string cmdline;
 
@@ -200,7 +206,7 @@ string LinuxParser::Command(int pid) {
   return cmdline;
 }
 
-// TODO: Read and return the memory used by a process
+// DONE: Read and return the memory used by a process
 string LinuxParser::Ram(int pid) {
   string line, key;
   u64 value;
@@ -216,10 +222,13 @@ string LinuxParser::Ram(int pid) {
     }
   }
 
-  return to_string(static_cast<u64>(round(value / 1000.)));
+  ostringstream os;
+  os << fixed << setprecision(3) << value / 1000.;
+
+  return os.str();
 }
 
-// FIXME: Read and return the user ID associated with a process
+// DONE: Read and return the user ID associated with a process
 string LinuxParser::Uid(int pid) {
   string line, key, uid;
 
@@ -235,7 +244,7 @@ string LinuxParser::Uid(int pid) {
   return uid;
 }
 
-// TODO: Read and return the user associated with a process
+// DONE: Read and return the user associated with a process
 string LinuxParser::User(int pid) {
   string line, key, uid{Uid(pid)}, user{"N/A"}, temp;
   // handles meminfo
@@ -244,10 +253,13 @@ string LinuxParser::User(int pid) {
     while (getline(filestream, line)) {
       replace(line.begin(), line.end(), ':', ' ');
       istringstream linestream(line);
-      for (int i = 0; i < 3; i++) {
-        if (i == 0) linestream >> user;
-        if (i == 2) linestream >> key;
-        linestream >> temp;
+      for (size_t i = 0; i < 3; i++) {
+        if (i == 0)
+          linestream >> user;
+        else if (i == 2)
+          linestream >> key;
+        else
+          linestream >> temp;
       }
       if (key == uid) return user;
     }
@@ -255,7 +267,7 @@ string LinuxParser::User(int pid) {
   return user;
 }
 
-// TODO: Read and return the uptime of a process
+// DONE: Read and return the uptime of a process
 long LinuxParser::UpTime(int pid) {
   string line, temp;
   u64 starttime;
@@ -268,8 +280,8 @@ long LinuxParser::UpTime(int pid) {
       linestream >> starttime;
     }
   }
-
-  return round(starttime * 1. / sysconf(_SC_CLK_TCK));
+  long Hertz{sysconf(_SC_CLK_TCK)};
+  return round(starttime * 1. / Hertz);
 }
 
 /****************************** helper functions
