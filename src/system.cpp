@@ -16,10 +16,15 @@ using std::size_t;
 using std::string;
 using std::vector;
 
-// TODO: Return the system's CPU
+// Initialize cpu and pids
+System::System() : cpu_{Processor()}, pids_{LinuxParser::Pids()} {
+  for (auto&& pid : pids_) processes_.emplace_back(Process(pid));
+}
+
+// DONE: Return the system's CPU
 Processor& System::Cpu() { return cpu_; }
 
-// TODO: Return a container composed of the system's processes
+// DONE: Return a container composed of the system's processes
 vector<Process>& System::Processes() { return processes_; }
 
 // DONE: Return the system's kernel identifier (string)

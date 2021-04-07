@@ -1,11 +1,17 @@
 #ifndef PROCESSOR_H
 #define PROCESSOR_H
 
+#include <chrono>
+#include <thread>
+
+#include "linux_parser.h"
+using namespace std::literals::chrono_literals;
+
 class Processor {
  public:
-  float Utilization();  // TODO: See src/processor.cpp
+  float Utilization();  // DONE: See src/processor.cpp
 
-  // TODO: Declare any necessary private members
+  // DONE: Declare any necessary private members
  private:
 };
 

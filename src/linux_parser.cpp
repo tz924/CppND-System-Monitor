@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+using std::any_cast;
 using std::getline;
 using std::ifstream;
 using std::istringstream;
@@ -79,101 +80,204 @@ vector<int> LinuxParser::Pids() {
 // source:
 // https://stackoverflow.com/questions/41224738/how-to-calculate-system-memory-usage-from-proc_dict-meminfo-like-htop/41251290#41251290
 float LinuxParser::MemoryUtilization() {
-  InitProc();
   UpdateMeminfo();
-  uint64_t memTotal{proc["meminfo"]["MemTotal"]},
+  any memTotal{proc["meminfo"]["MemTotal"]},
       memFree{proc["meminfo"]["MemFree"]}, buffers{proc["meminfo"]["Buffers"]},
       cached{proc["meminfo"]["Cached"]},
       sReclaimable{proc["meminfo"]["SReclaimable"]},
-      shmem{proc["meminfo"]["Shmem"]}, usedTotal{memTotal - memFree},
-      cachedMemory{cached + sReclaimable - shmem},
-      nonCachedTotal{usedTotal - (buffers + cachedMemory)};
+      shmem{proc["meminfo"]["Shmem"]},
+      usedTotal{any_cast<u64>(memTotal) - any_cast<u64>(memFree)},
+      cachedMemory{any_cast<u64>(cached) + any_cast<u64>(sReclaimable) -
+                   any_cast<u64>(shmem)},
+      nonCachedTotal{any_cast<u64>(usedTotal) -
+                     (any_cast<u64>(buffers) + any_cast<u64>(cachedMemory))};
 
-  return (nonCachedTotal + 0.) / memTotal;
+  return (any_cast<u64>(nonCachedTotal) + 0.) / any_cast<u64>(memTotal);
 }
 
 // DONE: Read and return the system uptime
 long LinuxParser::UpTime() {
-  InitProc();
   UpdateUptime();
-  return proc["uptime"]["upTime"];
+  return any_cast<long>(proc["uptime"]["upTime"]);
 }
 
-// TODO: Read and return the number of jiffies for the system
-long LinuxParser::Jiffies() { return 0; }
+// DONE: Read and return the number of jiffies for the system
+long LinuxParser::Jiffies() { return ActiveJiffies() + IdleJiffies(); }
 
 // TODO: Read and return the number of active jiffies for a PID
-// REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::ActiveJiffies(int pid [[maybe_unused]]) { return 0; }
+long LinuxParser::ActiveJiffies(int pid) {
+  string line, temp;
+  u64 utime, stime, cutime, cstime;
 
-// TODO: Read and return the number of active jiffies for the system
-long LinuxParser::ActiveJiffies() { return 0; }
+  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatusFilename);
+  if (filestream.is_open()) {
+    while (getline(filestream, line)) {
+      istringstream linestream(line);
+      for (int i = 0; i < 22; i++) {
+        switch (i) {
+          case 13:
+            linestream >> utime;
+            break;
+          case 14:
+            linestream >> stime;
+            break;
+          case 15:
+            linestream >> cutime;
+            break;
+          case 16:
+            linestream >> cstime;
+            break;
+          default:
+            linestream >> temp;
+            break;
+        }
+      }
+    }
+  }
 
-// TODO: Read and return the number of idle jiffies for the system
-long LinuxParser::IdleJiffies() { return 0; }
+  return utime + stime + cutime + cstime;
+}
 
-// TODO: Read and return CPU utilization
+// DONE: Read and return the number of active jiffies for the system
+long LinuxParser::ActiveJiffies() {
+  auto cpuData = CpuUtilization();
+
+  long NonIdle{
+      stol(cpuData[CPUStates::kUser_]) + stol(cpuData[CPUStates::kNice_]) +
+      stol(cpuData[CPUStates::kSystem_]) + stol(cpuData[CPUStates::kIRQ_]) +
+      stol(cpuData[CPUStates::kSoftIRQ_]) + stol(cpuData[CPUStates::kSteal_])};
+
+  return NonIdle;
+}
+
+// DONE: Read and return the number of idle jiffies for the system
+long LinuxParser::IdleJiffies() {
+  auto cpuData = CpuUtilization();
+
+  long idle{stol(cpuData[CPUStates::kIdle_])},
+      iowait{stol(cpuData[CPUStates::kIOwait_])}, Idle{idle + iowait};
+
+  return Idle;
+}
+
+// DONE: Read and return CPU utilization
 vector<string> LinuxParser::CpuUtilization() {
-  InitProc();
   UpdateStat();
+  vector<string> cpu;
+  string state;
 
-  prevIdle = previdle + previowait;
-  Idle = idle + iowait;
+  // convert cpu data to vector
+  istringstream linestream(any_cast<string>(proc["stat"]["cpu"]));
+  for (int i = 0; i <= N_STATES; i++) {
+    // skip header "cpu"
+    linestream >> state;
+    if (i > 0) cpu.push_back(state);
+  }
 
-  PrevNonIdle =
-      prevuser + prevnice + prevsystem + previrq + prevsoftirq + prevsteal;
-  NonIdle = user + nice + system + irq + softirq + steal;
-
-  PrevTotal = prevIdle + PrevNonIdle;
-  Total = Idle + NonIdle;
-
-  // differentiate: actual value minus the previous one
-  totald = Total - PrevTotal;
-  idled = Idle - prevIdle;
-
-  CPU_Percentage = (totald - idled) / totald;
-
-  return {};
+  return cpu;
 }
 
 // DONE: Read and return the total number of processes
 int LinuxParser::TotalProcesses() {
-  InitProc();
   UpdateStat();
-  return proc["stat"]["processes"];
+  return any_cast<int>(proc["stat"]["processes"]);
 }
 
 // DONE: Read and return the number of running processes
 int LinuxParser::RunningProcesses() {
-  InitProc();
   UpdateStat();
-  return proc["stat"]["procs_running"];
+  return any_cast<int>(proc["stat"]["procs_running"]);
 }
 
 // TODO: Read and return the command associated with a process
-// REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Command(int pid [[maybe_unused]]) { return string(); }
+string LinuxParser::Command(int pid) {
+  string cmdline;
+
+  // handles meminfo
+  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kCmdlineFilename);
+  if (filestream.is_open()) getline(filestream, cmdline);
+
+  return cmdline;
+}
 
 // TODO: Read and return the memory used by a process
-// REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Ram(int pid [[maybe_unused]]) { return string(); }
+string LinuxParser::Ram(int pid) {
+  string line, key;
+  u64 value;
 
-// TODO: Read and return the user ID associated with a process
-// REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Uid(int pid [[maybe_unused]]) { return string(); }
+  // handles meminfo
+  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatusFilename);
+  if (filestream.is_open()) {
+    while (getline(filestream, line)) {
+      replace(line.begin(), line.end(), ':', ' ');
+      istringstream linestream(line);
+      linestream >> key;
+      if (key == "VmSize") linestream >> value;
+    }
+  }
+
+  return to_string(static_cast<u64>(round(value / 1000.)));
+}
+
+// FIXME: Read and return the user ID associated with a process
+string LinuxParser::Uid(int pid) {
+  string line, key, uid;
+
+  // handles meminfo
+  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatusFilename);
+  if (filestream.is_open()) {
+    while (getline(filestream, line)) {
+      istringstream linestream(line);
+      linestream >> key;
+      if (key.rfind("Uid", 0) == FOUND) linestream >> uid;
+    }
+  }
+  return uid;
+}
 
 // TODO: Read and return the user associated with a process
-// REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::User(int pid [[maybe_unused]]) { return string(); }
+string LinuxParser::User(int pid) {
+  string line, key, uid{Uid(pid)}, user{"N/A"}, temp;
+  // handles meminfo
+  ifstream filestream(kPasswordPath);
+  if (filestream.is_open()) {
+    while (getline(filestream, line)) {
+      replace(line.begin(), line.end(), ':', ' ');
+      istringstream linestream(line);
+      for (int i = 0; i < 3; i++) {
+        if (i == 0) linestream >> user;
+        if (i == 2) linestream >> key;
+        linestream >> temp;
+      }
+      if (key == uid) return user;
+    }
+  }
+  return user;
+}
 
 // TODO: Read and return the uptime of a process
-// REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::UpTime(int pid [[maybe_unused]]) { return 0; }
+long LinuxParser::UpTime(int pid) {
+  string line, temp;
+  u64 starttime;
+  // handles meminfo
+  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatFilename);
+  if (filestream.is_open()) {
+    while (getline(filestream, line)) {
+      istringstream linestream(line);
+      for (size_t i = 0; i < 21; i++) linestream >> temp;
+      linestream >> starttime;
+    }
+  }
 
-/****************************** helper functions ******************************/
+  return round(starttime * 1. / sysconf(_SC_CLK_TCK));
+}
+
+/****************************** helper functions
+ * ******************************/
 void LinuxParser::UpdateMeminfo() {
   string line, key, unit;
-  uint64_t value;
+  u64 value;
+  InitProc();
 
   // handles meminfo
   ifstream filestream(kProcDirectory + kMeminfoFilename);
@@ -192,85 +296,54 @@ void LinuxParser::UpdateMeminfo() {
 
 void LinuxParser::UpdateStat() {
   string line, key;
-  uint64_t value;
+  int value;
+  InitProc();
 
   ifstream filestream(kProcDirectory + kStatFilename);
   while (getline(filestream, line)) {
     istringstream linestream(line);
     linestream >> key;
     // for processes related
-    if (key.rfind("proc", 0) == 0) {
+    if (key.rfind("proc", 0) == FOUND) {
       linestream >> value;
       proc["stat"][key] = value;
     }
     // for cpu utilization
-    if (key == "cpu") {
-      linestream >> value;
-      proc["stat"]["user"] = value;
-
-      linestream >> value;
-      proc["stat"]["nice"] = value;
-
-      linestream >> value;
-      proc["stat"]["system"] = value;
-
-      linestream >> value;
-      proc["stat"]["idle"] = value;
-
-      linestream >> value;
-      proc["stat"]["iowait"] = value;
-
-      linestream >> value;
-      proc["stat"]["irq"] = value;
-
-      linestream >> value;
-      proc["stat"]["softirq"] = value;
-
-      linestream >> value;
-      proc["stat"]["steal"] = value;
-
-      linestream >> value;
-      proc["stat"]["guest"] = value;
-
-      linestream >> value;
-      proc["stat"]["guest_nice"] = value;
-    }
+    if (key == "cpu") proc["stat"]["cpu"] = linestream.str();
   }
 }
 
 void LinuxParser::UpdateUptime() {
   string line, key;
-  double upTime{0}, idle{0};
+  double upTime{0};
+  InitProc();
 
   ifstream filestream(kProcDirectory + kUptimeFilename);
   // get uptime in seconds from file (first value)
   getline(filestream, line);
   istringstream linestream(line);
-  linestream >> upTime >> idle;
+  linestream >> upTime;
 
-  // std::cout << upTime << " " << idle << '\n';
-
-  proc["uptime"]["upTime"] = round(upTime);
-  proc["uptime"]["idle"] = round(idle);
+  proc["uptime"]["upTime"] = static_cast<long>(round(upTime));
 }
 
-// TODO: inialize map if not already initialized
+// DONE: inialize map if not already initialized
 void LinuxParser::InitProc() {
   // handles meminfo
   if (proc.find("meminfo") == proc.end()) {
-    unordered_map<string, uint64_t> meminfo;
+    unordered_map<string, any> meminfo;
     proc["meminfo"] = meminfo;
   }
 
   // handles stat
   if (proc.find("stat") == proc.end()) {
-    unordered_map<string, uint64_t> stat;
+    unordered_map<string, any> stat;
     proc["stat"] = stat;
   }
 
   // handles uptime
   if (proc.find("uptime") == proc.end()) {
-    unordered_map<string, uint64_t> uptime;
+    unordered_map<string, any> uptime;
     proc["uptime"] = uptime;
   }
 }

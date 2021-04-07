@@ -1,15 +1,20 @@
 #ifndef SYSTEM_PARSER_H
 #define SYSTEM_PARSER_H
 
+#include <any>
 #include <fstream>
 #include <regex>
 #include <string>
 #include <unordered_map>
 
+using std::any;
 using std::string;
 using std::unordered_map;
 
 namespace LinuxParser {
+typedef uint64_t u64;
+constexpr int FOUND = 0;
+
 // Paths
 const string kProcDirectory{"/proc/"};
 const string kCmdlineFilename{"/cmdline"};
@@ -32,6 +37,7 @@ string OperatingSystem();
 string Kernel();
 
 // CPU
+const int N_STATES = 10;  // Number of elements in CPUStates
 enum CPUStates {
   kUser_ = 0,
   kNice_,
@@ -58,7 +64,7 @@ string User(int pid);
 long int UpTime(int pid);
 
 // helper functions
-static unordered_map<string, unordered_map<string, uint64_t>> proc;
+static unordered_map<string, unordered_map<string, any>> proc;
 void InitProc();
 void UpdateMeminfo();
 void UpdateStat();

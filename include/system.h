@@ -7,8 +7,13 @@
 #include "process.h"
 #include "processor.h"
 
+using std::vector;
+
 class System {
  public:
+  // Constructor
+  System();
+
   Processor& Cpu();                   // TODO: See src/system.cpp change
   std::vector<Process>& Processes();  // TODO: See src/system.cpp
   float MemoryUtilization();          // DONE: See src/system.cpp
@@ -20,8 +25,9 @@ class System {
 
   // TODO: Define any necessary private members
  private:
-  Processor cpu_ = {};
-  std::vector<Process> processes_ = {};
+  Processor cpu_ {};
+  vector<Process> processes_ {};
+  vector<int> pids_ {};
 };
 
 #endif
