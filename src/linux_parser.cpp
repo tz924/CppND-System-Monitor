@@ -20,6 +20,7 @@ using std::replace;
 using std::setprecision;
 using std::setw;
 using std::stof;
+using std::stoi;
 using std::string;
 using std::to_string;
 using std::unordered_map;
@@ -134,27 +135,26 @@ long LinuxParser::ActiveJiffies(int pid) {
   string line, temp;
   u64 utime, stime, cutime, cstime;
 
-  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatusFilename);
+  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatFilename);
   if (filestream.is_open()) {
     while (getline(filestream, line)) {
       istringstream linestream(line);
-      for (int i = 0; i < 17; i++) {
+      for (size_t i = 1; i <= 17; i++) {
         switch (i) {
-          case 13:
+          case 14:
             linestream >> utime;
             break;
-          case 14:
+          case 15:
             linestream >> stime;
             break;
-          case 15:
+          case 16:
             linestream >> cutime;
             break;
-          case 16:
+          case 17:
             linestream >> cstime;
             break;
           default:
             linestream >> temp;
-            break;
         }
       }
     }
@@ -312,7 +312,7 @@ long LinuxParser::UpTime(int pid) {
   if (filestream.is_open()) {
     while (getline(filestream, line)) {
       istringstream linestream(line);
-      for (size_t i = 0; i < 21; i++) linestream >> temp;
+      for (size_t i = 1; i < 22; i++) linestream >> temp;
       linestream >> starttime;
     }
   }

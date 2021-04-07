@@ -16,13 +16,13 @@ Process::Process(int pid) : pid_{pid} {}
 // DONE: Return this process's ID
 int Process::Pid() { return pid_; }
 
-// FIXME: Return this process's CPU utilization
+// DONE: Return this process's CPU utilization
 float Process::CpuUtilization() {
   long totalTime{LinuxParser::ActiveJiffies(pid_)}, upProcess{UpTime()},
       upCPU{LinuxParser::UpTime()}, Hertz{sysconf(_SC_CLK_TCK)};
-  double seconds{upCPU + 0. - upProcess};
+  float seconds{upCPU - upProcess};
 
-  return 1. * totalTime / Hertz / seconds;
+  return 1.f * totalTime / Hertz / seconds;
 }
 
 // DONE: Return the command that generated this process
