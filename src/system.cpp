@@ -11,10 +11,7 @@
 #include "process.h"
 #include "processor.h"
 
-using std::set;
-using std::size_t;
-using std::string;
-using std::vector;
+using namespace std;
 
 // Initialize cpu and pids
 System::System() : cpu_{Processor()}, pids_{LinuxParser::Pids()} {

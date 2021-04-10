@@ -7,9 +7,7 @@
 #include <string>
 #include <vector>
 
-using std::string;
-using std::to_string;
-using std::vector;
+using namespace std;
 
 Process::Process(int pid) : pid_{pid} {}
 
@@ -20,7 +18,7 @@ int Process::Pid() { return pid_; }
 float Process::CpuUtilization() {
   long totalTime{LinuxParser::ActiveJiffies(pid_)}, upProcess{UpTime()},
       upCPU{LinuxParser::UpTime()}, Hertz{sysconf(_SC_CLK_TCK)};
-  float seconds{upCPU - upProcess};
+  long seconds{upCPU - upProcess};
 
   return 1.f * totalTime / Hertz / seconds;
 }
