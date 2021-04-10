@@ -75,79 +75,32 @@ vector<int> LinuxParser::Pids() {
 // source:
 // https://stackoverflow.com/questions/41224738/how-to-calculate-system-memory-usage-from-proc_dict-meminfo-like-htop/41251290#41251290
 float LinuxParser::MemoryUtilization() {
-  string line, key;
-  long value;
+  float memTotal{findValueByKey<float>(fMemTotal, kMeminfoFilename)},
+      memFree{findValueByKey<float>(fMemFree, kMeminfoFilename)},
+      buffers{findValueByKey<float>(fBuffers, kMeminfoFilename)},
+      cached{findValueByKey<float>(fCached, kMeminfoFilename)},
+      sReclaimable{findValueByKey<float>(fSReclaimable, kMeminfoFilename)},
+      shmem{findValueByKey<float>(fShmem, kMeminfoFilename)},
 
-  unordered_map<string, long> meminfo;
-
-  ifstream filestream(kProcDirectory + kMeminfoFilename);
-  if (filestream.is_open()) {
-    // read key value pairs into dict
-    while (getline(filestream, line)) {
-      replace(line.begin(), line.end(), ':', ' ');
-      istringstream linestream(line);
-      linestream >> key >> value;
-      meminfo[key] = value;
-    }
-  }
-
-  long memTotal{meminfo["MemTotal"]}, memFree{meminfo["MemFree"]},
-      buffers{meminfo["Buffers"]}, cached{meminfo["Cached"]},
-      sReclaimable{meminfo["SReclaimable"]}, shmem{meminfo["Shmem"]},
       usedTotal{memTotal - memFree},
       cachedMemory{cached + sReclaimable - shmem},
       nonCachedTotal{usedTotal - (buffers + cachedMemory)};
 
-  return (nonCachedTotal + 0.) / memTotal;
+  return nonCachedTotal / memTotal;
 }
 
 // DONE: Read and return the system uptime
-long LinuxParser::UpTime() {
-  string line;
-  long upTime;
-
-  ifstream filestream(kProcDirectory + kUptimeFilename);
-  if (filestream.is_open()) {
-    getline(filestream, line);
-    istringstream linestream(line);
-    linestream >> upTime;
-  }
-
-  return upTime;
-}
+long LinuxParser::UpTime() { return getValueOfFile<long>(kUptimeFilename); }
 
 // DONE: Read and return the number of jiffies for the system
 long LinuxParser::Jiffies() { return ActiveJiffies() + IdleJiffies(); }
 
 // DONE: Read and return the number of active jiffies for a PID
 long LinuxParser::ActiveJiffies(int pid) {
-  string line, temp;
-  long utime, stime, cutime, cstime;
-
-  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatFilename);
-  if (filestream.is_open()) {
-    while (getline(filestream, line)) {
-      istringstream linestream(line);
-      for (size_t i = 1; i <= 17; i++) {
-        switch (i) {
-          case 14:
-            linestream >> utime;
-            break;
-          case 15:
-            linestream >> stime;
-            break;
-          case 16:
-            linestream >> cutime;
-            break;
-          case 17:
-            linestream >> cstime;
-            break;
-          default:
-            linestream >> temp;
-        }
-      }
-    }
-  }
+  long utime{findNthValue<long>(kUTime, to_string(pid) + kStatFilename)},
+      stime{findNthValue<long>(kSTime, to_string(pid) + kStatFilename)},
+      cutime{findNthValue<long>(kCUTime, to_string(pid) + kStatFilename)},
+      cstime{findNthValue<long>(kCSTime, to_string(pid) + kStatFilename)};
 
   return utime + stime + cutime + cstime;
 }
@@ -169,7 +122,9 @@ long LinuxParser::IdleJiffies() {
   auto cpuData = CpuUtilization();
 
   long idle{stol(cpuData[CPUStates::kIdle_])},
-      iowait{stol(cpuData[CPUStates::kIOwait_])}, Idle{idle + iowait};
+      iowait{stol(cpuData[CPUStates::kIOwait_])},
+
+      Idle{idle + iowait};
 
   return Idle;
 }
@@ -183,7 +138,7 @@ vector<string> LinuxParser::CpuUtilization() {
   while (getline(filestream, line)) {
     istringstream linestream(line);
     linestream >> key;
-    if (key == "cpu") {
+    if (key == fCpu) {
       for (size_t i = 0; i < N_STATES; i++) {
         linestream >> state;
         cpu.emplace_back(state);
@@ -195,86 +150,40 @@ vector<string> LinuxParser::CpuUtilization() {
 
 // DONE: Read and return the total number of processes
 int LinuxParser::TotalProcesses() {
-  string line, key;
-  int processes;
-
-  ifstream filestream(kProcDirectory + kStatFilename);
-  while (getline(filestream, line)) {
-    istringstream linestream(line);
-    linestream >> key;
-    if (key == "processes") linestream >> processes;
-  }
-
-  return processes;
+  return findValueByKey<int>(fProcesses, kStatFilename);
 }
 
 // DONE: Read and return the number of running processes
 int LinuxParser::RunningProcesses() {
-  string line, key;
-  int procs_running;
-
-  ifstream filestream(kProcDirectory + kStatFilename);
-  while (getline(filestream, line)) {
-    istringstream linestream(line);
-    linestream >> key;
-    if (key == "procs_running") linestream >> procs_running;
-  }
-
-  return procs_running;
+  return findValueByKey<int>(fRunningProcesses, kStatFilename);
 }
 
 // DONE: Read and return the command associated with a process
 string LinuxParser::Command(int pid) {
-  string cmdline;
-
-  // handles meminfo
-  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kCmdlineFilename);
-  if (filestream.is_open()) getline(filestream, cmdline);
-
-  return cmdline;
+  return getValueOfFile<string>(to_string(pid) + kCmdlineFilename);
 }
 
 // DONE: Read and return the memory used by a process
 // VmSize can be more than physical RAM size;
 // using VmData instead to reflect accurate physical RAM usage
 string LinuxParser::Ram(int pid) {
-  string line, key;
-  long value;
-
-  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatusFilename);
-  if (filestream.is_open()) {
-    while (getline(filestream, line)) {
-      replace(line.begin(), line.end(), ':', ' ');
-      istringstream linestream(line);
-      linestream >> key;
-      if (key == "VmData") linestream >> value;
-    }
-  }
+  float ram{findValueByKey<float>(fProcMem, to_string(pid) + kStatusFilename)};
 
   ostringstream os;
-  os << fixed << setprecision(2) << value / 1000.;
+  // Convert to MB
+  os << fixed << setprecision(2) << ram / 1000;
 
   return os.str();
 }
 
 // DONE: Read and return the user ID associated with a process
 string LinuxParser::Uid(int pid) {
-  string line, key, uid;
-
-  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatusFilename);
-  if (filestream.is_open()) {
-    while (getline(filestream, line)) {
-      istringstream linestream(line);
-      linestream >> key;
-      if (key.rfind("Uid", 0) == FOUND) linestream >> uid;
-    }
-  }
-  return uid;
+  return findValueByKey<string>(fUID, to_string(pid) + kStatusFilename);
 }
 
 // DONE: Read and return the user associated with a process
 string LinuxParser::User(int pid) {
-  string line, key, uid{Uid(pid)}, user{"N/A"}, temp;
+  string line, key, uid{Uid(pid)}, user, temp;
   ifstream filestream(kPasswordPath);
   if (filestream.is_open()) {
     while (getline(filestream, line)) {
@@ -296,18 +205,7 @@ string LinuxParser::User(int pid) {
 
 // DONE: Read and return the uptime of a process
 long LinuxParser::UpTime(int pid) {
-  string line, temp;
-  llu starttime;
-
-  ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatFilename);
-  if (filestream.is_open()) {
-    while (getline(filestream, line)) {
-      istringstream linestream(line);
-      for (size_t i = 1; i < 22; i++) linestream >> temp;
-      linestream >> starttime;
-    }
-  }
-
+  llu start_time{findNthValue<llu>(kStartTime, to_string(pid) + kStatFilename)};
   long Hertz{sysconf(_SC_CLK_TCK)};
-  return starttime * 1. / Hertz;
+  return 1. * start_time / Hertz;
 }

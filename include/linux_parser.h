@@ -6,13 +6,30 @@
 #include <string>
 #include <unordered_map>
 
-using std::string;
-using std::unordered_map;
+using namespace std;
 
 namespace LinuxParser {
 constexpr int FOUND = 0;
 typedef unsigned long lu;
 typedef unsigned long long llu;
+
+constexpr int kUTime = 14;
+constexpr int kSTime = 15;
+constexpr int kCUTime = 16;
+constexpr int kCSTime = 17;
+constexpr int kStartTime = 22;
+
+const string fProcesses("processes");
+const string fRunningProcesses("procs_running");
+const string fMemTotal("MemTotal:");
+const string fMemFree("MemFree:");
+const string fBuffers("Buffers:");
+const string fCached("Cached:");
+const string fSReclaimable("SReclaimable:");
+const string fShmem("Shmem:");
+const string fCpu("cpu");
+const string fUID("Uid:");
+const string fProcMem("VmData:");
 
 // Paths
 const string kProcDirectory{"/proc/"};
@@ -29,7 +46,7 @@ const string kPasswordPath{"/etc/passwd"};
 // System
 float MemoryUtilization();
 long UpTime();
-std::vector<int> Pids();
+vector<int> Pids();
 int TotalProcesses();
 int RunningProcesses();
 string OperatingSystem();
@@ -49,7 +66,7 @@ enum CPUStates {
   kGuest_,
   kGuestNice_
 };
-std::vector<string> CpuUtilization();
+vector<string> CpuUtilization();
 long Jiffies();
 long ActiveJiffies();
 long ActiveJiffies(int pid);
@@ -67,6 +84,54 @@ void InitProc();
 void UpdateMeminfo();
 void UpdateStat();
 void UpdateUptime();
+
+template <typename T>
+T findValueByKey(string const &keyFilter, string const &filename) {
+  string line, key;
+  T value;
+
+  ifstream file(kProcDirectory + filename);
+  if (file.is_open()) {
+    while (getline(file, line)) {
+      istringstream linestream(line);
+      while (linestream >> key >> value)
+        if (key == keyFilter) return value;
+    }
+  }
+  return value;
+};
+
+template <typename T>
+T getValueOfFile(string const &filename) {
+  string line;
+  T value;
+
+  ifstream stream(kProcDirectory + filename);
+  if (stream.is_open()) {
+    getline(stream, line);
+    istringstream linestream(line);
+    linestream >> value;
+  }
+  return value;
+};
+
+template <typename T>
+T findNthValue(size_t const &n, string const &filename) {
+  string line, temp;
+  T value;
+
+  ifstream file(kProcDirectory + filename);
+  if (file.is_open()) {
+    while (getline(file, line)) {
+      istringstream linestream(line);
+      for (size_t i = 1; i < n; i++) linestream >> temp;
+      linestream >> value;
+      return value;
+    }
+  }
+  return value;
+};
+
 };  // namespace LinuxParser
 
 #endif
