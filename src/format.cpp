@@ -32,15 +32,4 @@ string Format::ElapsedTime(long secs) {
      << setw(2) << setfill('0') << seconds.count();  // SS
 
   return ss.str();
-  // long hours = seconds / 3600l;
-  // seconds %= 3600l;
-  // long minutes = seconds / 60l;
-  // seconds %= 60l;
-
-  // ostringstream os;
-  // os.fill('0');
-  // os << setw(2) << hours << ':' << setw(2) << minutes << ':' << setw(2)
-  //    << seconds;
-
-  // return os.str();
 }
