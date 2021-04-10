@@ -13,13 +13,14 @@ class Process {
   // constructor
   Process(int);
 
-  int Pid();                               // DONE: See src/process.cpp
+  int Pid() const;                         // DONE: See src/process.cpp
   std::string User();                      // DONE: See src/process.cpp
   std::string Command();                   // DONE: See src/process.cpp
-  float CpuUtilization();                  // DONE: See src/process.cpp
+  float CpuUtilization() const;            // DONE: See src/process.cpp
   std::string Ram();                       // DONE: See src/process.cpp
-  long int UpTime();                       // DONE: See src/process.cpp
+  long UpTime() const;                     // DONE: See src/process.cpp
   bool operator<(Process const& a) const;  // DONE: See src/process.cpp
+  bool operator>(Process const& a) const;  // DONE: See src/process.cpp
 
   // DONE: Declare any necessary private members
  private:

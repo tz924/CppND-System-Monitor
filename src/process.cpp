@@ -12,10 +12,10 @@ using namespace std;
 Process::Process(int pid) : pid_{pid} {}
 
 // DONE: Return this process's ID
-int Process::Pid() { return pid_; }
+int Process::Pid() const { return pid_; }
 
 // DONE: Return this process's CPU utilization
-float Process::CpuUtilization() {
+float Process::CpuUtilization() const {
   long totalTime{LinuxParser::ActiveJiffies(pid_)}, upProcess{UpTime()},
       upCPU{LinuxParser::UpTime()}, Hertz{sysconf(_SC_CLK_TCK)},
       seconds{upCPU - upProcess};
@@ -39,7 +39,13 @@ string Process::Ram() { return LinuxParser::Ram(pid_); }
 string Process::User() { return LinuxParser::User(pid_); }
 
 // DONE: Return the age of this process (in seconds)
-long int Process::UpTime() { return LinuxParser::UpTime(pid_); }
+long int Process::UpTime() const { return LinuxParser::UpTime(pid_); }
 
 // DONE: Overload the "less than" comparison operator for Process objects
-bool Process::operator<(Process const& a) const { return pid_ < a.pid_; }
+bool Process::operator<(Process const& a) const {
+  return CpuUtilization() < a.CpuUtilization();
+}
+// DONE: Overload the "more than" comparison operator for Process objects
+bool Process::operator>(Process const& a) const {
+  return CpuUtilization() > a.CpuUtilization();
+}
