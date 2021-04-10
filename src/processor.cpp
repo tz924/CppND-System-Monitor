@@ -5,12 +5,12 @@ float Processor::Utilization() {
   long prevTotal{LinuxParser::Jiffies()};
   long prevNonIdle{LinuxParser::ActiveJiffies()};
 
-  std::this_thread::sleep_for(1s);
+  std::this_thread::sleep_for(100ms);
 
   long total{LinuxParser::Jiffies()};
   long nonIdle{LinuxParser::ActiveJiffies()};
   long totald{total - prevTotal};
-  long totalNonIdeld{nonIdle - prevNonIdle};
+  float totalNonIdeld{static_cast<float>(nonIdle - prevNonIdle)};
 
-  return static_cast<float>((totalNonIdeld + 0.) / totald);
+  return totalNonIdeld / totald;
 }

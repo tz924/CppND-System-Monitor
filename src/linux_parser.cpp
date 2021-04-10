@@ -207,5 +207,6 @@ string LinuxParser::User(int pid) {
 long LinuxParser::UpTime(int pid) {
   llu start_time{findNthValue<llu>(kStartTime, to_string(pid) + kStatFilename)};
   long Hertz{sysconf(_SC_CLK_TCK)};
-  return 1. * start_time / Hertz;
+
+  return UpTime() - 1. * start_time / Hertz;
 }
