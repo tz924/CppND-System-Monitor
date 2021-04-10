@@ -23,6 +23,7 @@ class Process {
 
   // DONE: Declare any necessary private members
  private:
+  static constexpr int COMMAND_MAX = 40;
   int pid_;
 };
 

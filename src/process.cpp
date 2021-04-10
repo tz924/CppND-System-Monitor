@@ -17,14 +17,20 @@ int Process::Pid() { return pid_; }
 // DONE: Return this process's CPU utilization
 float Process::CpuUtilization() {
   long totalTime{LinuxParser::ActiveJiffies(pid_)}, upProcess{UpTime()},
-      upCPU{LinuxParser::UpTime()}, Hertz{sysconf(_SC_CLK_TCK)};
-  long seconds{upCPU - upProcess};
+      upCPU{LinuxParser::UpTime()}, Hertz{sysconf(_SC_CLK_TCK)},
+      seconds{upCPU - upProcess};
 
   return 1.f * totalTime / Hertz / seconds;
 }
 
 // DONE: Return the command that generated this process
-string Process::Command() { return LinuxParser::Command(pid_); }
+string Process::Command() {
+  auto command = LinuxParser::Command(pid_);
+
+  // truncate command if it exceeds the maximum length
+  return command.length() > COMMAND_MAX ? command.substr(COMMAND_MAX) + "..."
+                                        : command;
+}
 
 // DONE: Return this process's memory utilization
 string Process::Ram() { return LinuxParser::Ram(pid_); }
