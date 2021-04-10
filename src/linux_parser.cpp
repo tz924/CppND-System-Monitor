@@ -3,7 +3,9 @@
 #include <dirent.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -11,20 +13,8 @@
 #include <unordered_map>
 #include <vector>
 
-using std::fixed;
-using std::getline;
-using std::ifstream;
-using std::istringstream;
-using std::ostringstream;
-using std::replace;
-using std::setprecision;
-using std::setw;
-using std::stof;
-using std::stoi;
-using std::string;
-using std::to_string;
-using std::unordered_map;
-using std::vector;
+using namespace std;
+namespace fs = filesystem;
 
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::OperatingSystem() {
@@ -62,23 +52,20 @@ string LinuxParser::Kernel() {
   return kernel;
 }
 
-// BONUS: Update this to use std::filesystem
+// DONE: Update this to use std::filesystem
 vector<int> LinuxParser::Pids() {
   vector<int> pids;
-  DIR* directory = opendir(kProcDirectory.c_str());
-  struct dirent* file;
-  while ((file = readdir(directory)) != nullptr) {
-    // Is this a directory?
-    if (file->d_type == DT_DIR) {
-      // Is every character of the name a digit?
-      string filename(file->d_name);
-      if (std::all_of(filename.begin(), filename.end(), isdigit)) {
-        int pid = stoi(filename);
-        pids.push_back(pid);
+
+  for (auto& p : fs::directory_iterator(kProcDirectory)) {
+    if (fs::is_directory(p)) {
+      auto dirname = p.path().filename().string();
+      if (all_of(dirname.begin(), dirname.end(), ::isdigit)) {
+        auto pid = stoi(dirname);
+        pids.emplace_back(pid);
       }
     }
   }
-  closedir(directory);
+
   return pids;
 }
 

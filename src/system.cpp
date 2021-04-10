@@ -2,6 +2,7 @@
 
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <set>
 #include <string>
@@ -16,6 +17,10 @@ using namespace std;
 // Initialize cpu and pids
 System::System() : cpu_{Processor()}, pids_{LinuxParser::Pids()} {
   for (auto&& pid : pids_) processes_.emplace_back(Process(pid));
+
+  // sort processes by cpu % in descending order
+  sort(processes_.begin(), processes_.end(),
+       [](Process a, Process b) { return a > b; });
 }
 
 // DONE: Return the system's CPU

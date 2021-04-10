@@ -28,7 +28,7 @@ string Process::Command() {
   auto command = LinuxParser::Command(pid_);
 
   // truncate command if it exceeds the maximum length
-  return command.length() > COMMAND_MAX ? command.substr(COMMAND_MAX) + "..."
+  return command.length() > COMMAND_MAX ? command.substr(0, COMMAND_MAX) + "..."
                                         : command;
 }
 
