@@ -15,19 +15,24 @@
 using namespace std;
 
 // Initialize cpu and pids
-System::System() : cpu_{Processor()}, pids_{LinuxParser::Pids()} {
-  for (auto&& pid : pids_) processes_.emplace_back(Process(pid));
-
-  // sort processes by cpu % in descending order
-  sort(processes_.begin(), processes_.end(),
-       [](Process a, Process b) { return a > b; });
-}
+System::System() : cpu_{Processor()}, pids_{LinuxParser::Pids()} {}
 
 // DONE: Return the system's CPU
 Processor& System::Cpu() { return cpu_; }
 
 // DONE: Return a container composed of the system's processes
-vector<Process>& System::Processes() { return processes_; }
+vector<Process>& System::Processes() {
+  pids_ = LinuxParser::Pids();
+  processes_.clear();
+
+  for (auto&& pid : pids_) processes_.emplace_back(Process(pid));
+
+  // Sort in descending order (by cpu)
+  sort(processes_.begin(), processes_.end(),
+       [](Process a, Process b) { return a > b; });
+
+  return processes_;
+}
 
 // DONE: Return the system's kernel identifier (string)
 std::string System::Kernel() { return LinuxParser::Kernel(); }

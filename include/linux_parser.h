@@ -10,8 +10,9 @@ using std::string;
 using std::unordered_map;
 
 namespace LinuxParser {
-typedef uint64_t u64;
 constexpr int FOUND = 0;
+typedef unsigned long lu;
+typedef unsigned long long llu;
 
 // Paths
 const string kProcDirectory{"/proc/"};

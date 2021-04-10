@@ -59,6 +59,8 @@ vector<int> LinuxParser::Pids() {
   for (auto& p : fs::directory_iterator(kProcDirectory)) {
     if (fs::is_directory(p)) {
       auto dirname = p.path().filename().string();
+
+      // if the directory name consists of digits, add it to pids
       if (all_of(dirname.begin(), dirname.end(), ::isdigit)) {
         auto pid = stoi(dirname);
         pids.emplace_back(pid);
@@ -74,9 +76,9 @@ vector<int> LinuxParser::Pids() {
 // https://stackoverflow.com/questions/41224738/how-to-calculate-system-memory-usage-from-proc_dict-meminfo-like-htop/41251290#41251290
 float LinuxParser::MemoryUtilization() {
   string line, key;
-  u64 value;
+  long value;
 
-  unordered_map<string, u64> meminfo;
+  unordered_map<string, long> meminfo;
 
   ifstream filestream(kProcDirectory + kMeminfoFilename);
   if (filestream.is_open()) {
@@ -89,7 +91,7 @@ float LinuxParser::MemoryUtilization() {
     }
   }
 
-  u64 memTotal{meminfo["MemTotal"]}, memFree{meminfo["MemFree"]},
+  long memTotal{meminfo["MemTotal"]}, memFree{meminfo["MemFree"]},
       buffers{meminfo["Buffers"]}, cached{meminfo["Cached"]},
       sReclaimable{meminfo["SReclaimable"]}, shmem{meminfo["Shmem"]},
       usedTotal{memTotal - memFree},
@@ -120,7 +122,7 @@ long LinuxParser::Jiffies() { return ActiveJiffies() + IdleJiffies(); }
 // DONE: Read and return the number of active jiffies for a PID
 long LinuxParser::ActiveJiffies(int pid) {
   string line, temp;
-  u64 utime, stime, cutime, cstime;
+  long utime, stime, cutime, cstime;
 
   ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatFilename);
   if (filestream.is_open()) {
@@ -233,9 +235,11 @@ string LinuxParser::Command(int pid) {
 }
 
 // DONE: Read and return the memory used by a process
+// VmSize can be more than physical RAM size;
+// using VmData instead to reflect accurate physical RAM usage
 string LinuxParser::Ram(int pid) {
   string line, key;
-  u64 value;
+  long value;
 
   ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatusFilename);
   if (filestream.is_open()) {
@@ -243,12 +247,12 @@ string LinuxParser::Ram(int pid) {
       replace(line.begin(), line.end(), ':', ' ');
       istringstream linestream(line);
       linestream >> key;
-      if (key == "VmSize") linestream >> value;
+      if (key == "VmData") linestream >> value;
     }
   }
 
   ostringstream os;
-  os << fixed << setprecision(3) << value / 1000.;
+  os << fixed << setprecision(2) << value / 1000.;
 
   return os.str();
 }
@@ -293,7 +297,7 @@ string LinuxParser::User(int pid) {
 // DONE: Read and return the uptime of a process
 long LinuxParser::UpTime(int pid) {
   string line, temp;
-  u64 starttime;
+  llu starttime;
 
   ifstream filestream(kProcDirectory + to_string(pid) + "/" + kStatFilename);
   if (filestream.is_open()) {
@@ -303,6 +307,7 @@ long LinuxParser::UpTime(int pid) {
       linestream >> starttime;
     }
   }
+
   long Hertz{sysconf(_SC_CLK_TCK)};
-  return round(starttime * 1. / Hertz);
+  return starttime * 1. / Hertz;
 }

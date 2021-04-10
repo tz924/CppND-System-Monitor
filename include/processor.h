@@ -6,7 +6,6 @@
 
 #include "linux_parser.h"
 using namespace std::literals::chrono_literals;
-
 class Processor {
  public:
   float Utilization();  // DONE: See src/processor.cpp

@@ -2,13 +2,15 @@
 
 // DONE: Return the aggregate CPU utilization
 float Processor::Utilization() {
-  long prevTotal{LinuxParser::Jiffies()},
-      prevNonIdle{LinuxParser::ActiveJiffies()};
+  long prevTotal{LinuxParser::Jiffies()};
+  long prevNonIdle{LinuxParser::ActiveJiffies()};
 
   std::this_thread::sleep_for(1s);
 
-  long total{LinuxParser::Jiffies()}, nonIdle{LinuxParser::ActiveJiffies()},
-  totald{total - prevTotal}, totalNonIdeld{nonIdle - prevNonIdle};
+  long total{LinuxParser::Jiffies()};
+  long nonIdle{LinuxParser::ActiveJiffies()};
+  long totald{total - prevTotal};
+  long totalNonIdeld{nonIdle - prevNonIdle};
 
-  return (totalNonIdeld + 0.) / totald;
+  return static_cast<float>((totalNonIdeld + 0.) / totald);
 }
