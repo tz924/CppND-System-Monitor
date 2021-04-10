@@ -16,10 +16,10 @@ int Process::Pid() const { return pid_; }
 
 // DONE: Return this process's CPU utilization
 float Process::CpuUtilization() const {
-  long totalTime{LinuxParser::ActiveJiffies(pid_)};
-  long Hertz{sysconf(_SC_CLK_TCK)};
-  long seconds{UpTime()};
-  return (1. * totalTime / Hertz) / seconds;
+  const long totalTime{LinuxParser::ActiveJiffies(pid_)};
+  const long Hertz{sysconf(_SC_CLK_TCK)};
+  const long seconds{UpTime()};
+  return static_cast<float>(totalTime) / Hertz / seconds;
 }
 
 // DONE: Return the command that generated this process

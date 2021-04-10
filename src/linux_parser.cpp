@@ -75,7 +75,7 @@ vector<int> LinuxParser::Pids() {
 // source:
 // https://stackoverflow.com/questions/41224738/how-to-calculate-system-memory-usage-from-proc_dict-meminfo-like-htop/41251290#41251290
 float LinuxParser::MemoryUtilization() {
-  float memTotal{findValueByKey<float>(fMemTotal, kMeminfoFilename)},
+  const float memTotal{findValueByKey<float>(fMemTotal, kMeminfoFilename)},
       memFree{findValueByKey<float>(fMemFree, kMeminfoFilename)},
       buffers{findValueByKey<float>(fBuffers, kMeminfoFilename)},
       cached{findValueByKey<float>(fCached, kMeminfoFilename)},
@@ -97,7 +97,7 @@ long LinuxParser::Jiffies() { return ActiveJiffies() + IdleJiffies(); }
 
 // DONE: Read and return the number of active jiffies for a PID
 long LinuxParser::ActiveJiffies(int pid) {
-  long utime{findNthValue<long>(kUTime, to_string(pid) + kStatFilename)},
+  const long utime{findNthValue<long>(kUTime, to_string(pid) + kStatFilename)},
       stime{findNthValue<long>(kSTime, to_string(pid) + kStatFilename)},
       cutime{findNthValue<long>(kCUTime, to_string(pid) + kStatFilename)},
       cstime{findNthValue<long>(kCSTime, to_string(pid) + kStatFilename)};
@@ -109,7 +109,7 @@ long LinuxParser::ActiveJiffies(int pid) {
 long LinuxParser::ActiveJiffies() {
   auto cpuData = CpuUtilization();
 
-  long NonIdle{
+  const long NonIdle{
       stol(cpuData[CPUStates::kUser_]) + stol(cpuData[CPUStates::kNice_]) +
       stol(cpuData[CPUStates::kSystem_]) + stol(cpuData[CPUStates::kIRQ_]) +
       stol(cpuData[CPUStates::kSoftIRQ_]) + stol(cpuData[CPUStates::kSteal_])};
@@ -121,7 +121,7 @@ long LinuxParser::ActiveJiffies() {
 long LinuxParser::IdleJiffies() {
   auto cpuData = CpuUtilization();
 
-  long idle{stol(cpuData[CPUStates::kIdle_])},
+  const long idle{stol(cpuData[CPUStates::kIdle_])},
       iowait{stol(cpuData[CPUStates::kIOwait_])},
 
       Idle{idle + iowait};
@@ -206,7 +206,7 @@ string LinuxParser::User(int pid) {
 // DONE: Read and return the uptime of a process
 long LinuxParser::UpTime(int pid) {
   llu start_time{findNthValue<llu>(kStartTime, to_string(pid) + kStatFilename)};
-  long Hertz{sysconf(_SC_CLK_TCK)};
+  const long Hertz{sysconf(_SC_CLK_TCK)};
 
-  return UpTime() - 1. * start_time / Hertz;
+  return UpTime() - start_time / static_cast<double>(Hertz);
 }

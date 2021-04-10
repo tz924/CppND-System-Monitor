@@ -57,7 +57,7 @@ void NCursesDisplay::DisplaySystem(System& system, WINDOW* window) {
 void NCursesDisplay::DisplayProcesses(std::vector<Process>& processes,
                                       WINDOW* window, int n) {
   int constexpr pid_w = 7;
-  int constexpr user_w = 9 + 10;
+  int constexpr user_w = 9;
   int constexpr cpu_w = 9;
   int constexpr ram_w = 9;
   int constexpr time_w = 11;
